@@ -1,0 +1,107 @@
+000100 IDENTIFICATION DIVISION.                                         00010003
+000200 PROGRAM-ID. P37AP03.                                             00020003
+000300 ENVIRONMENT DIVISION.                                            00030003
+000400 DATA DIVISION.                                                   00040003
+000500 WORKING-STORAGE SECTION.                                         00050003
+000600 01  WS-USER-PIN           PIC 9(04) VALUE ZERO.                  00060003
+000700 01  PIN-I                 PIC S9(04)V USAGE COMP-3 VALUE ZERO.   00070003
+000800 01  CARDNO-I              PIC S9(16)V USAGE COMP-3 VALUE ZERO.   00080003
+000900 01  TABLE-PIN             PIC 9(04) VALUE ZERO.                  00090003
+001000 01  TABLE-CARDNO          PIC 9(16) VALUE ZERO.                  00100003
+001100 01  WS-CA.                                                       00110003
+001200     03 CA-USER-CARDNO     PIC 9(16) VALUE ZERO.                  00120003
+001300     03 CA-USER-PIN        PIC 9(04) VALUE ZERO.                  00130003
+001400     03 FILLER             PIC X(20) VALUE SPACES.                00140003
+001500     EXEC SQL                                                     00150003
+001600         INCLUDE USER                                             00160003
+001700     END-EXEC.                                                    00170003
+001800     EXEC SQL                                                     00180003
+001900         INCLUDE SQLCA                                            00190003
+002000     END-EXEC.                                                    00200003
+002100     COPY P37AS01.                                                00210003
+002200     COPY DFHAID.                                                 00220003
+002300 LINKAGE SECTION.                                                 00230003
+002400 01  DFHCOMMAREA       PIC X(40).                                 00240003
+002500 PROCEDURE DIVISION.                                              00250003
+002600 MAIN-PARA.                                                       00260003
+002700     IF EIBCALEN = ZERO                                           00270003
+002800        PERFORM ERROR-PARA                                        00280003
+002900     ELSE                                                         00290003
+003000        IF EIBCALEN = 1                                           00300003
+003100           PERFORM SEND-BMSPIN-MAP                                00310003
+003200        ELSE                                                      00320003
+003300           MOVE DFHCOMMAREA TO WS-CA                              00330003
+003400           PERFORM RECEIVE-BMSPIN-MAP                             00340003
+003500           PERFORM PROCESS-BMSPIN-PARA                            00350003
+003600        END-IF                                                    00360003
+003700        PERFORM END-PARA                                          00370003
+003800     END-IF.                                                      00380003
+003900 END-PARA.                                                        00390003
+004000     EXEC CICS RETURN                                             00400003
+004100         TRANSID('P37C')                                          00410003
+004200         COMMAREA(WS-CA)                                          00420003
+004300     END-EXEC.                                                    00430003
+004400 ERROR-PARA.                                                      00440003
+004500     EXEC CICS XCTL                                               00450003
+004600         PROGRAM('P37AP01')                                       00460003
+004700     END-EXEC.                                                    00470003
+004800 SEND-BMSPIN-MAP.                                                 00480003
+004900     EXEC CICS SEND                                               00490003
+005000         MAP('BMSPIN')                                            00500003
+005100         MAPSET('P37AS01')                                        00510003
+005200         FROM(BMSPINO)                                            00520003
+005300         CURSOR                                                   00530003
+005400         ERASE                                                    00540003
+005500     END-EXEC.                                                    00550003
+005600 RECEIVE-BMSPIN-MAP.                                              00560003
+005700     EXEC CICS RECEIVE                                            00570003
+005800         MAP('BMSPIN')                                            00580003
+005900         MAPSET('P37AS01')                                        00590003
+006000         INTO(BMSPINI)                                            00600003
+006100     END-EXEC.                                                    00610003
+006200 PROCESS-BMSPIN-PARA.                                             00620003
+006300     EVALUATE EIBAID                                              00630003
+006400     WHEN DFHENTER                                                00640003
+006500          PERFORM CHECK-PIN-PARA                                  00650003
+006600     WHEN DFHPF1                                                  00660003
+006700         EXEC CICS XCTL                                           00670003
+006800             PROGRAM('P37AP01')                                   00680003
+006900         END-EXEC                                                 00690003
+007000     WHEN OTHER                                                   00700003
+007100         MOVE 'INVALID KEY PRESSED' TO MSGPO                      00710003
+007200     END-EVALUATE.                                                00720003
+007300 CHECK-PIN-PARA.                                                  00730003
+007400     IF PINL = ZERO OR PINI = SPACES                              00740003
+007500        MOVE 'PLEASE ENTER A VALID PIN' TO MSGPO                  00750003
+007600        PERFORM READ-USER-PIN                                     00760003
+007700     END-IF.                                                      00770003
+007800 READ-USER-PIN.                                                   00780003
+007900     MOVE CA-USER-CARDNO TO CARDNO-I                              00790003
+008000     MOVE PINI TO PIN-I                                           00800003
+008100     PERFORM SQL-PARA.                                            00810003
+008200 SQL-PARA.                                                        00820003
+008300     EXEC SQL                                                     00830003
+008400         SELECT CARD_NO, PIN                                      00840003
+008500         INTO :CARD-NO, :PIN                                      00850003
+008600         FROM T37_USER_TABLE                                      00860003
+008700         WHERE CARD_NO = :CARDNO-I AND PIN = :PIN-I               00870003
+008800     END-EXEC                                                     00880003
+008900     MOVE CARD-NO TO TABLE-CARDNO                                 00890003
+009000     MOVE PIN TO TABLE-PIN                                        00900003
+009100     MOVE TABLE-CARDNO TO CA-USER-CARDNO                          00910003
+009200     MOVE TABLE-PIN TO CA-USER-PIN                                00920003
+009300     DISPLAY 'SELECT CODE:', SQLCODE                              00930003
+009400     EVALUATE SQLCODE                                             00940003
+009500     WHEN ZERO                                                    00950003
+009600         PERFORM TRANSFER-PARA                                    00960003
+009700     WHEN 100                                                     00970003
+009800         MOVE -1       TO PINL                                    00980003
+009900         MOVE 'ENTER VALID PIN' TO MSGPO                          00990003
+010000     WHEN OTHER                                                   01000003
+010100         MOVE 'ERROR PROCESSING FILE' TO MSGPO                    01010003
+010200     END-EVALUATE.                                                01020003
+010300 TRANSFER-PARA.                                                   01030003
+010400     EXEC CICS XCTL                                               01040003
+010500         PROGRAM ('P37AP04')                                      01050003
+010600         COMMAREA(WS-CA)                                          01060003
+010700     END-EXEC.                                                    01070003

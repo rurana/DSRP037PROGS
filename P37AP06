@@ -1,0 +1,137 @@
+000100  IDENTIFICATION DIVISION.                                        00010000
+000200  PROGRAM-ID. P37AP06.                                            00020001
+000300  ENVIRONMENT DIVISION.                                           00030000
+000400  INPUT-OUTPUT SECTION.                                           00040000
+000500  FILE-CONTROL.                                                   00050000
+000600       SELECT REP-FILE ASSIGN TO REPFILE                          00060000
+000700       ORGANIZATION IS SEQUENTIAL                                 00070000
+000800       ACCESS MODE IS SEQUENTIAL.                                 00080000
+000900  DATA DIVISION.                                                  00090000
+001000  FILE SECTION.                                                   00100000
+001100  FD REP-FILE                                                     00110000
+001200       RECORD CONTAINS 80 CHARACTERS                              00120000
+001300       RECORDING MODE IS F.                                       00130000
+001400  01  REPORT-RECORD  PIC X(80).                                   00140000
+001500  WORKING-STORAGE SECTION.                                        00150000
+001600  01  WS-RESP-CODE   PIC S9(08) COMP VALUE ZERO.                  00160002
+001700  01  WS-CA.                                                      00170002
+001800      CA-CARDNO      PIC 9(16) VALUE ZERO.                        00180002
+001900      CA-ACCTYPE     PIC X(01) VALUE SPACES.                      00190002
+002000      CA-TRNTYPE     PIC X(01) VALUE SPACES.                      00200002
+002100  01  WS-MSGA        PIC X(30) VALUE                              00210002
+002200      'TRANSACTION ENDED!'.                                       00220002
+002300  01  WS-CARDNO      PIC X(05) VALUE SPACES.                      00230002
+002400  01  WS-PIN         PIC X(05) VALUE SPACES.                      00240002
+002500  01  WS-ACCTYPE     PIC X(15) VALUE SPACES.                      00250002
+002600  01  WS-TRNTYPE     PIC X(05) VALUE SPACES.                      00260002
+002700  01  WS-AMT         PIC X(12) VALUE SPACES.                      00270002
+002800  01  WS-DATA-FLAG   PIC X(01) VALUE 'N'.                         00280002
+002900      88 END-OF-DATA           VALUE 'Y'.                         00290002
+003000  01  WS-ROW-FLAG   PIC X(01) VALUE 'N'.                          00300002
+003100      88 END-OF-ROW            VALUE 'Y'.                         00310002
+003200  01  WS-EMP-LOC     PIC X(03) VALUE SPACES.                      00320002
+003300      88 END-OF-RECORD             VALUE 'XXX'.                   00330002
+003400  01  HEADING-LINE.                                               00340002
+003500      03 FILLER          PIC X(02) VALUE 'TRN-ID'.                00350002
+003600      03 FILLER          PIC X(05) VALUE SPACES.                  00360002
+003700      03 FILLER          PIC X(08) VALUE 'TRN-DATE'.              00370002
+003800      03 FILLER          PIC X(08) VALUE SPACES.                  00380002
+003900      03 FILLER          PIC X(08) VALUE 'TRN-TIME'.              00390002
+004000      03 FILLER          PIC X(08) VALUE SPACES.                  00400002
+004100      03 FILLER          PIC X(05) VALUE 'TRN-AMT'.               00410002
+004200      03 FILLER          PIC X(01) VALUE SPACES.                  00420002
+004300      03 FILLER          PIC X(08) VALUE 'TRN-TYPE'.              00430002
+004400      03 FILLER          PIC X(01) VALUE SPACES.                  00440002
+004500      03 FILLER          PIC X(10) VALUE 'TCARD-NO'.              00450002
+004600  01  PRINT-DATA.                                                 00460002
+004700      03 P-ID         PIC X(05).                                  00470002
+004800      03 FILLER       PIC X(02) VALUE SPACES.                     00480002
+004900      03 P-DATE       PIC X(15).                                  00490002
+005000      03 FILLER       PIC X(03) VALUE SPACES.                     00500002
+005100      03 P-TIME       PIC X(12).                                  00510002
+005200      03 FILLER       PIC X(04) VALUE SPACES.                     00520002
+005300      03 P-AMT        PIC X(05).                                  00530002
+005400      03 FILLER       PIC X(01) VALUE SPACES.                     00540002
+005500      03 P-TYPE       PIC ZZ,ZZ9.99.                              00550002
+005600      03 FILLER       PIC X(01) VALUE SPACES.                     00560002
+005700      03 P-TCARDNO    PIC ZZ,ZZ9.99.                              00570002
+005800      EXEC SQL                                                    00580002
+005900           INCLUDE USER                                           00590002
+006000      END-EXEC                                                    00600002
+006100      EXEC SQL                                                    00610002
+006200           INCLUDE TRN                                            00620002
+006300      END-EXEC                                                    00630002
+006400      EXEC SQL                                                    00640002
+006500           INCLUDE SQLCA                                          00650002
+006600      END-EXEC                                                    00660002
+006700      EXEC SQL                                                    00670002
+006800          DECLARE USER_CUR CURSOR FOR                             00680002
+006900          SELECT *                                                00690002
+007000          FROM T37_USER_TABLE                                     00700002
+007100          WHERE CARD_NO = :WS-CARD-NO                             00710002
+007200      END-EXEC.                                                   00720002
+007300      COPY P37AS01.                                               00730002
+007400      COPY DFHAID.                                                00740002
+007500      COPY USERREC.                                               00750002
+007600  LINKAGE SECTION.                                                00760002
+007700  01  DFHCOMMAREA        PIC X(1).                                00770002
+007800  PROCEDURE DIVISION.                                             00780002
+007900  MAIN-PARA.                                                      00790002
+008000      OPEN OUTPUT REP-FILE                                        00800002
+008100      WRITE REPORT-RECORD FROM HEADING-LINE                       00810002
+008200      PERFORM OPEN-SQL                                            00820002
+008300      PERFORM PROCESS-LOC-PARA UNTIL END-OF-DATA                  00830002
+008400      PERFORM CLOSE-SQL                                           00840002
+008500      STOP RUN.                                                   00850002
+008600  PROCESS-LOC-PARA.                                               00860002
+008700      PERFORM PROCESS-ROW-PARA UNTIL END-OF-ROW                   00870002
+008800      PERFORM ACCEPT-PARA.                                        00880002
+008900  PROCESS-ROW-PARA.                                               00890002
+009000      EXEC SQL                                                    00900002
+009100          FETCH USER_CUR INTO                                     00910002
+009200          :CARD-NO, :PIN, :NAME, :ADDRESS, :BALANCE, :ACC-TYPE,   00920002
+009300          :ACC-NO, :ACC-STAT                                      00930002
+009400      END-EXEC                                                    00940002
+009500      DISPLAY 'SQLCODE: ', SQLCODE                                00950002
+009600      EVALUATE SQLCODE                                            00960002
+009700      WHEN ZERO                                                   00970002
+009800         PERFORM MOVE-PARA                                        00980002
+009900         WRITE REPORT-RECORD FROM PRINT-DATA                      00990002
+010000         MOVE 'Y' TO WS-ROW-FLAG                                  01000002
+010100      WHEN 100                                                    01010002
+010200         PERFORM NEXT-REC-PARA                                    01020002
+010300      WHEN OTHER                                                  01030002
+010400         DISPLAY 'ERROR FETCHING FILE'                            01040002
+010500      END-EVALUATE.                                               01050002
+010600  MOVE-PARA.                                                      01060002
+010700      MOVE EMP-ID      TO P-ID                                    01070002
+010800      MOVE EMP-NAME    TO P-NAME                                  01080002
+010900      MOVE EMP-TECH    TO P-TECH                                  01090002
+011000      MOVE LOC-NAME    TO P-LOC                                   01100002
+011100      MOVE EMP-EARN    TO P-EARN                                  01110002
+011200      MOVE EMP-DEDN    TO P-DEDN.                                 01120002
+011300  NEXT-REC-PARA.                                                  01130002
+011400       PERFORM OPEN-SQL                                           01140002
+011500       PERFORM PROCESS-ROW-PARA                                   01150002
+011600       PERFORM CLOSE-SQL.                                         01160002
+011700  ACCEPT-PARA.                                                    01170002
+011800       PERFORM CLOSE-SQL                                          01180002
+011900       ACCEPT WS-EMP-LOC                                          01190002
+012000       IF WS-EMP-LOC = 'XXX'                                      01200002
+012100          PERFORM END-PARA                                        01210002
+012200       ELSE                                                       01220002
+012300          PERFORM OPEN-SQL                                        01230002
+012400          MOVE 'Y' TO WS-ROW-FLAG                                 01240002
+012500          PERFORM PROCESS-ROW-PARA                                01250002
+012600       END-IF.                                                    01260002
+012700  END-PARA.                                                       01270002
+012800       PERFORM CLOSE-SQL                                          01280002
+012900       STOP RUN.                                                  01290002
+013000  CLOSE-SQL.                                                      01300002
+013100       EXEC SQL                                                   01310002
+013200           CLOSE EMP_CUR                                          01320002
+013300       END-EXEC.                                                  01330002
+013400  OPEN-SQL.                                                       01340002
+013500       EXEC SQL                                                   01350002
+013600           OPEN EMP_CUR                                           01360002
+013700       END-EXEC.                                                  01370002
